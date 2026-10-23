@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Small Steps | Task list</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f5f0; color: #22372b; font: 17px/1.5 system-ui, sans-serif; }
+    main { max-width: 640px; margin: 8vh auto; padding: 28px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 12px; font-weight: 700; }
+    h1 { font-size: clamp(36px, 8vw, 56px); letter-spacing: -.05em; margin: 10px 0; }
+    .intro { color: #55675a; margin-bottom: 32px; }
+    form { display: flex; gap: 10px; margin: 8px 0 12px; }
+    input[type=text] { flex: 1; min-width: 0; border: 1px solid #aebcb1; border-radius: 12px; padding: 14px; font: inherit; }
+    button { border: 0; border-radius: 12px; padding: 12px 18px; background: #24543c; color: white; cursor: pointer; font: inherit; }
+    button:hover { background: #173c29; }
+    :focus-visible { outline: 3px solid #bd6b20; outline-offset: 3px; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 12px; background: white; padding: 14px; margin-bottom: 10px; border-radius: 14px; border: 1px solid #e1e7df; }
+    li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer; }
+    li span { overflow-wrap: anywhere; }
+    input[type=checkbox] { width: 20px; height: 20px; flex-shrink: 0; accent-color: #24543c; }
+    input:checked + span { text-decoration: line-through; color: #68756c; }
+    .delete { background: #f2f4ef; color: #46564a; font-size: 14px; padding: 8px 12px; }
+    .delete:hover { background: #e1e7df; }
+    #empty { padding: 32px 20px; text-align: center; border: 1px dashed #aebcb1; border-radius: 14px; }
+    #status, footer { font-size: 14px; color: #55675a; }
+    #notice { color: #8b3c16; }
+    footer { margin-top: 36px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">A little focus, every day</p>
+    <h1>Small Steps</h1>
+    <p class="intro">Make room for what matters. Start with one small task.</p>
+    <form id="task-form">
+      <input id="task-input" type="text" aria-label="New task" placeholder="What would you like to get done?" maxlength="200" required autocomplete="off">
+      <button type="submit">Add task</button>
+    </form>
+    <p id="status" role="status"></p>
+    <p id="notice" role="alert" hidden></p>
+    <ul id="tasks" aria-label="Your tasks"></ul>
+    <p id="empty">A fresh start. Add your first task above.</p>
+    <footer>Saved in this browser. No account, no uploads.</footer>
+  </main>
+  <script>
+    'use strict';
+    const key = 'small-steps-tasks-v1';
+    const input = document.querySelector('#task-input');
+    const list = document.querySelector('#tasks');
+    const notice = document.querySelector('#notice');
+    let tasks = [];
+    function warn(message) { notice.textContent = message; notice.hidden = false; }
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || '[]');
+      if (!Array.isArray(saved) || !saved.every(t => t && typeof t.text === 'string' && typeof t.done === 'boolean')) throw new Error('Invalid saved tasks');
+      tasks = saved;
+    } catch { warn('Saved tasks could not be loaded. You can still use the list for this session.'); }
+    function save() {
+      try { localStorage.setItem(key, JSON.stringify(tasks)); }
+      catch { warn('Your browser could not save these tasks. Keep this page open to retain them.'); }
+    }
+    function render() {
+      list.replaceChildren();
+      tasks.forEach((task, index) => {
+        const row = document.createElement('li');
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox'; checkbox.checked = task.done;
+        const text = document.createElement('span'); text.textContent = task.text;
+        checkbox.addEventListener('change', () => { task.done = checkbox.checked; save(); updateStatus(); });
+        label.append(checkbox, text);
+        const remove = document.createElement('button');
+        remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
+        remove.setAttribute('aria-label', 'Delete task: ' + task.text);
+        remove.addEventListener('click', () => { tasks.splice(index, 1); save(); render(); input.focus(); });
+        row.append(label, remove); list.append(row);
+      });
+      updateStatus();
+    }
+    function updateStatus() {
+      const remaining = tasks.filter(t => !t.done).length;
+      document.querySelector('#status').textContent = remaining + (remaining === 1 ? ' task left' : ' tasks left') + ' / ' + tasks.length + ' total';
+      document.querySelector('#empty').hidden = tasks.length > 0;
+    }
+    document.querySelector('#task-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) { input.value = ''; input.focus(); return; }
+      tasks.push({ text, done: false }); save(); render(); input.value = ''; input.focus();
+    });
+    render();
+  </script>
+</body>
+</html>
